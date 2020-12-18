@@ -1,0 +1,16 @@
+.dub
+docs.json
+dub.selections.json
+__dummy.html
+docs/
+/chimpfella
+chimpfella.so
+chimpfella.dylib
+chimpfella.dll
+chimpfella.a
+chimpfella.lib
+chimpfella-test-*
+*.exe
+*.o
+*.obj
+*.lst
