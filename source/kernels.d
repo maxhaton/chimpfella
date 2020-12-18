@@ -26,8 +26,16 @@ struct FunctionBenchmark(string name, alias genIndependantVariable, alias indepe
         else 
             alias finalFunc = independantToData;
         
-        static if(arity!finalFunc)
-            static assert(__traits(compiles, finalFunc(elemT.init)));
+        static if(arity!finalFunc) {
+            enum compiles = __traits(compiles, finalFunc(elemT.init));
+            static if(__traits(isTemplate, finalFunc)) {
+                
+            } else {
+                static assert(__traits(compiles, finalFunc(elemT.init)));
+            }
+            
+        }
+            
         
     }
 
