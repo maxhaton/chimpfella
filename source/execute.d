@@ -86,7 +86,22 @@ private template DefaultExecutionEngine(string fullName, FuncPack...)
                 }
                 else
                 {
-                    const res = theFunc(theData);
+                    import std.traits : arity, hasMember;
+
+                    static if (arity!theFunc > 1)
+                    {
+
+                        static assert(hasMember!(typeof(theData), "pack"),
+                                "Since D does not have multiple return values this library requires that you return some\n
+                        type containing 
+                        an AliasSeq of values named \"pack\" which the library will expand for you");
+                        const res = theFunc(theData.pack);
+                    }
+                    else
+                    {
+                        const res = theFunc(theData);
+                    }
+
                     //Hot region ends
                     procState!((ref x) => x.stop)(state);
                     //force a data dependancy on the output to trick the compiler
@@ -161,7 +176,7 @@ template ExecuteBenchmarks(alias fromHere)
                         //pragma(msg, "\t", paramItem);
                         //Work out what we're doing, then instantiate theFunc with it.
                         //Is it a type 
-                        pragma(msg, paramItem.stringof, " compiles ", __traits(compiles, symbol!paramItem));
+                        
                         //Parameter is fits the slot
                         static if (__traits(compiles, symbol!paramItem))
                         {
@@ -170,8 +185,9 @@ template ExecuteBenchmarks(alias fromHere)
                             auto bench = theFunctionBench;
                             //static assert(!is(ReturnType!symbol == void), "benchmarked function may not (yet) be void. Support for ref args coming soon");
                             //Run the benchmark
-                            alias engine = DefaultExecutionEngine!(theFunctionBench.benchmarkName,
+                            alias engine = DefaultExecutionEngine!(theFunctionBench.benchmarkName ~ paramItem.stringof,
                                     func);
+                            enum forwardTemplateParam = bench.forward;
                             alias genInd = bench.genIndSet;
                             alias genData_ = bench.genData;
                             alias IndT = ElementType!(typeof(genInd));
@@ -183,24 +199,76 @@ template ExecuteBenchmarks(alias fromHere)
                             }
                             else
                             {
-                                alias genFunc = genData_;
+                                static if (forwardTemplateParam)
+                                {
+                                    alias genFunc = genData_.contents!paramItem;
+                                }
+                                else
+                                {
+                                    alias genFunc = genData_;
+                                }
+
                             }
-                            
-                            engine.runEngine!(MetaT, genInd, genFunc)(metaExecutionState,
-                                bench.measurementList);
+
+                            engine.runEngine!(MetaT, genInd,
+                                    genFunc)(metaExecutionState, bench.measurementList);
                         }
                         else
                         {
                             //It's not a type, so it better be a range literal.
                             //Arrays are special cased
                             alias specRangeT = typeof(paramItem);
-                            pragma(msg, isInputRange!specRangeT);
-                            static assert(isInputRange!specRangeT && !isInfinite!(specRangeT), "not a valid parameter");
+                            //pragma(msg, isInputRange!specRangeT);
+                            static assert(isInputRange!specRangeT
+                                    && !isInfinite!(specRangeT), "not a valid parameter");
                             //It's a range 
                             alias ElemT = ElementType!specRangeT;
-                            static assert(__traits(compiles, symbol!ElemT), "symbol = " ~ fullyQualifiedName!symbol);
-
+                            //pragma(msg, ElemT);
+                            
+                            static assert(__traits(compiles, symbol!(ElemT.init)),
+                                    " symbol = " ~ fullyQualifiedName!symbol);
+                            import std.array : array;
                             enum ctRange = paramItem.array;
+
+                            static foreach (ctRangeItem; ctRange)
+                            {
+                                {
+                                    alias func = symbol!ctRangeItem;
+
+                                    auto bench = theFunctionBench;
+                                    static if(isSomeString!(typeof(ctRangeItem)))
+                                        enum stringSummary = ctRangeItem;
+                                    else 
+                                        enum stringSummary = ctRangeItem.stringof;
+                                    //Run the benchmark
+                                    alias engine = DefaultExecutionEngine!(
+                                            theFunctionBench.benchmarkName ~ stringSummary, func);
+                                    enum forwardTemplateParam = bench.forward;
+                                    alias genInd = bench.genIndSet;
+                                    alias genData_ = bench.genData;
+                                    alias IndT = ElementType!(typeof(genInd));
+
+                                    static if (__traits(isTemplate, genData_))
+                                    {
+                                        static assert(__traits(compiles, genData_!IndT));
+                                        alias genFunc = genData_!IndT;
+                                    }
+                                    else
+                                    {
+                                        static if (forwardTemplateParam)
+                                        {
+                                            alias genFunc = genData_.contents!paramItem;
+                                        }
+                                        else
+                                        {
+                                            alias genFunc = genData_;
+                                        }
+                                    }
+                                    engine.runEngine!(MetaT, genInd,
+                                        genFunc)(metaExecutionState, bench.measurementList);
+                                }
+                                
+                            }
 
                         }
 
@@ -273,7 +341,7 @@ unittest
                 volatileStore(&x, _);
         }
 
-        auto getRandPair(T)(int x)
+        static auto getRandPair(T)(int x)
         {
             import std.random;
 
@@ -288,18 +356,26 @@ unittest
             // Generate an integer in [0, 1023]
             tmp.pack[0] = cast(T) uniform(0, 1024, rnd);
             tmp.pack[1] = cast(T) uniform(0, 1024, rnd);
+            return tmp;
         }
 
-        @TemplateBenchmark!(0, int, float, double) @FunctionBenchmark!(
-                "Templated add benchmark", 0.repeat(100), getRandPair)(meas) static T templatedAdd(
-                T)(T x, T y)
+        @TemplateBenchmark!(0, int, float, double) @FunctionBenchmark!("Templated add benchmark",
+                0.repeat(100), ForwardTemplate!(getRandPair))(meas) static T templatedAdd(T)(T x,
+                T y)
         {
             return x + y;
         }
-
-        @TemplateBenchmark!(0, "mfence", "lfence", "sfence", "cpuid") @FunctionBenchmark!("Measure",
-                iota(1, 10), (_) => [1, 2, 3, 4])(meas) static int sum(string asmLine)(
-                inout int[] input)
+        import std.algorithm;
+        import std.array;
+        static string ctfeRepeater(int n)
+        {
+            return "cpuid;".repeat(n).join();
+        }
+        
+        enum cpuidRange = iota(1, 10).map!(ctfeRepeater).array;
+        @TemplateBenchmark!(0, cpuidRange) 
+        @FunctionBenchmark!("Measure", iota(1, 10), (_) => [1, 2, 3, 4])(meas) 
+        static int sum(string asmLine)(inout int[] input)
         {
             //This is quite fun because ldc will sometimes get rid of the entire function body and just loop over the asm's
             int tmp;
@@ -309,6 +385,7 @@ unittest
             }
             return tmp;
         }
+
         alias summat = sum!"mfence";
     }
 
@@ -330,7 +407,7 @@ unittest
                     name = setName;
                     writefln!"---------------%s---------------"(setName);
                     auto counterPut = counters.map!(x => x.getHeader);
-                    pragma(msg, ElementType!(typeof(counterPut)));
+                    //pragma(msg, ElementType!(typeof(counterPut)));
                     writeln("I;", counterPut.joiner!(typeof(counterPut)).joiner.joiner(";"));
                 }
 
