@@ -4,7 +4,6 @@
 	],
 	"copyright": "Copyright © 2020, Max Haughton",
 	"dependencies": {
-		"mir": "~>3.2.2",
 		"sumtype": "~>1.0.1"
 	},
 	"description": "Performance",
