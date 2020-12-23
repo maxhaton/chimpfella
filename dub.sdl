@@ -1,0 +1,17 @@
+name "chimpfella"
+authors "Max Haughton"
+description "Benchmarking made easy"
+
+targetType "library"
+targetPath "bin"
+
+configuration "library" {
+    targetName "chimpfella"
+    targetType "library"
+    dependency "sumtype" version="1.0.1"
+    sourcePaths "chimpfella/"
+    //sourceFiles "chimpfella"
+    importPaths "chimpfella/" "chimpfella/measurement/"
+}
+
+

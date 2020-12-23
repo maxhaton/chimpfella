@@ -9,5 +9,6 @@
 	"description": "Performance",
 	"license": "BSL-1.0",
 	"name": "chimpfella",
+	"importPaths": ["chimpfella/"],
 	"targetType": "library"
 }

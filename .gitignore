@@ -3,7 +3,6 @@ docs.json
 dub.selections.json
 __dummy.html
 docs/
-/chimpfella
 *.a
 chimpfella.so
 chimpfella.dylib
