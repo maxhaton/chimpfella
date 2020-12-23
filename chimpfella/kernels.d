@@ -1,5 +1,5 @@
-module chimpfella.kernels;
-import chimpfella.measurement;
+module kernels;
+import measurement;
 import std.traits;
 import std.range.primitives;
 

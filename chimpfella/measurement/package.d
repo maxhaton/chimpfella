@@ -1,5 +1,5 @@
-module chimpfella.measurement;
-public import chimpfella.measurement.phobostimer;
+module measurement;
+public import measurement.phobostimer;
 import sumtype;
 
 public alias Measurements = SumType!(PhobosTimer);
@@ -19,7 +19,7 @@ Measurements toMeasurement(T)(T x) pure
     return StateTypes(fromThis.match!((ref PhobosTimer f) => f.getState()));
 }
 
-@safe auto getHeader(Measurements fromThis)
+@safe string[][] getHeader(Measurements fromThis)
 {
     return (fromThis.match!((ref PhobosTimer f) => f.getHeader()));
 }

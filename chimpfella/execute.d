@@ -1,5 +1,5 @@
 module chimpfella.execute;
-import chimpfella.kernels;
+import kernels;
 import std.meta;
 
 ///Information from you about what to do with your benchmarks, where to put them, and what to do in between them.
@@ -324,8 +324,8 @@ unittest
     static class StaticStore
     {
 
-        import chimpfella.kernels;
-        import chimpfella.measurement;
+        import kernels;
+        import measurement;
         import std.range : iota, repeat;
         import std.random : uniform;
 

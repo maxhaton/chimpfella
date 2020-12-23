@@ -1,4 +1,4 @@
-module chimpfella.measurement.phobostimer;
+module measurement.phobostimer;
 @safe:
 @nogc:
 struct PhobosTimer {
